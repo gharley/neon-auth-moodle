@@ -1,7 +1,7 @@
 <?php
-// This file is a custom plugin for Moodle - http://moodle.org/
+// This file is part of the auth_neon plugin for Moodle - http://moodle.org/
 //
-// This software is Copyright(c) 2016 by Greg Harley
+// This software is Copyright(c) 2016 by Greg Harley - https://github.com/gharley/neon-auth-moodle
 // License - MIT https://opensource.org/licenses/MIT MIT
 
 /**
