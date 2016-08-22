@@ -11,7 +11,7 @@
  * @author Greg Harley
  * @license   https://opensource.org/licenses/MIT MIT
  *
- * Inspired by the lenauth plugin by Igor Sazonov ( @tigusigalpa )
+ * Inspired by the neon plugin by Igor Sazonov ( @tigusigalpa )
  */
 
 defined('MOODLE_INTERNAL') || die();
@@ -86,54 +86,12 @@ class auth_plugin_neon extends auth_plugin_base {
     }
 
     /**
-     * Updates the user's password.
-     *
-     * called when the user password is updated.
-     *
-     * @param  object  $user        User table object
-     * @param  string  $newpassword Plaintext password
-     * @return boolean result
-     *
-     */
-    function user_update_password($user, $newpassword) {
-        $user = get_complete_user_data('id', $user->id);
-        // This will also update the stored hash to the latest algorithm
-        // if the existing hash is using an out-of-date algorithm (or the
-        // legacy md5 algorithm).
-        return update_internal_user_password($user, $newpassword);
-    }
-
-    function prevent_local_passwords() {
-        return false;
-    }
-
-    /**
      * Returns true if this authentication plugin is 'internal'.
      *
      * @return bool
      */
     function is_internal() {
-        return true;
-    }
-
-    /**
-     * Returns true if this authentication plugin can change the user's
-     * password.
-     *
-     * @return bool
-     */
-    function can_change_password() {
-        return true;
-    }
-
-    /**
-     * Returns the URL for changing the user's pw, or empty if the default can
-     * be used.
-     *
-     * @return moodle_url
-     */
-    function change_password_url() {
-        return null;
+        return false;
     }
 
     /**
@@ -142,16 +100,7 @@ class auth_plugin_neon extends auth_plugin_base {
      * @return bool
      */
     function can_reset_password() {
-        return true;
-    }
-
-    /**
-     * Returns true if plugin can be manually set.
-     *
-     * @return bool
-     */
-    function can_be_manually_set() {
-        return true;
+        return isset($this->_config->auth_neon_can_reset_password) ? $this->_config->auth_neon_can_reset_password : false;
     }
 
     /**
@@ -163,7 +112,114 @@ class auth_plugin_neon extends auth_plugin_base {
      * @param array $page An object containing all the data for this page.
      */
     function config_form($config, $err, $user_fields) {
-        include "config.html";
+        // set to defaults if undefined
+        if( !isset($config->auth_neon_user_prefix) ){
+            $config->auth_neon_user_prefix = 'neon_user_';
+        }
+
+        if( !isset($config->auth_neon_default_country) ){
+            $config->auth_neon_default_country = '';
+        }
+
+        if( !isset($config->auth_neon_locale) ){
+            $config->auth_neon_locale = 'en';
+        }
+
+        if( empty($config->auth_neon_can_reset_password) ){
+            $config->auth_neon_can_reset_password = 0;
+        }else{
+            $config->auth_neon_can_reset_password = 1;
+        }
+
+        if( empty($config->auth_neon_can_confirm) ){
+            $config->auth_neon_can_confirm = 0;
+        }else{
+            $config->auth_neon_can_confirm = 1;
+        }
+
+        if( empty($config->auth_neon_retrieve_avatar) ){
+            $config->auth_neon_retrieve_avatar = 0;
+        }else{
+            $config->auth_neon_retrieve_avatar = 1;
+        }
+
+        if( empty($config->auth_neon_dev_mode) ){
+            $config->auth_neon_dev_mode = 0;
+        }else{
+            $config->auth_neon_dev_mode = 1;
+        }
+
+        if( !isset($config->auth_neon_display_buttons) ){
+            $config->auth_neon_display_buttons = 'inline-block';
+        }
+
+        if( !isset($config->auth_neon_button_width) ){
+            $config->auth_neon_button_width = 0;
+        }
+
+        if( !isset($config->auth_neon_button_margin_top) ){
+            $config->auth_neon_button_margin_top = 10;
+        }
+
+        if( !isset($config->auth_neon_button_margin_right) ){
+            $config->auth_neon_button_margin_right = 10;
+        }
+
+        if( !isset($config->auth_neon_button_margin_bottom) ){
+            $config->auth_neon_button_margin_bottom = 10;
+        }
+
+        if( !isset($config->auth_neon_button_margin_left) ){
+            $config->auth_neon_button_margin_left = 10;
+        }
+
+        if( !isset($config->auth_neon_display_div) ){
+            $config->auth_neon_display_div = 'block';
+        }
+
+        if( !isset($config->auth_neon_div_width) ){
+            $config->auth_neon_div_width = 0;
+        }
+
+        if( !isset($config->auth_neon_div_margin_top) ){
+            $config->auth_neon_div_margin_top = 0;
+        }
+
+        if( !isset($config->auth_neon_div_margin_right) ){
+            $config->auth_neon_div_margin_right = 0;
+        }
+
+        if( !isset($config->auth_neon_div_margin_bottom) ){
+            $config->auth_neon_div_margin_bottom = 0;
+        }
+
+        if( !isset($config->auth_neon_div_margin_left) ){
+            $config->auth_neon_div_margin_left = 0;
+        }
+
+        if ( !isset( $config->auth_neon_api_key ) ) {
+            $config->auth_neon_api_key = '';
+        }
+
+        if ( !isset( $config->auth_neon_org_id ) ) {
+            $config->auth_neon_org_id = '';
+        }
+
+        if ( !isset( $config->auth_neon_client_id ) ) {
+            $config->auth_neon_client_id = '';
+        }
+
+        if ( !isset( $config->auth_neon_client_secret ) ) {
+            $config->auth_neon_client_secret = '';
+        }
+
+        if ( !isset( $config->auth_neon_button_text ) ) {
+            $config->auth_neon_button_text = get_string( 'auth_neon_button_text_default', 'auth_neon' );
+        }
+
+        include "admin_config.php";
+
+        print_auth_lock_options($this->authtype, $user_fields, get_string('auth_fieldlocks_help', 'auth'), false, false);
     }
 
     /**
