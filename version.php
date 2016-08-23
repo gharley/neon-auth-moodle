@@ -14,6 +14,6 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2016082302;        // The current plugin version (Date: YYYYMMDDXX)
+$plugin->version   = 2016082304;        // The current plugin version (Date: YYYYMMDDXX)
 $plugin->requires  = 2015050500;        // Requires this Moodle version
 $plugin->component = 'auth_neon';       // Full name of the plugin (used for diagnostics)

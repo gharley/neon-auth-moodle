@@ -44,3 +44,22 @@ $string['auth_neon_desc'] = '
     </ol>';
 $string['auth_neon_binding_key'] = 'Binding';
 $string['auth_neon_binding'] = 'Neon CRM Social ID';
+
+$string['auth_neon_buttons_settings'] = 'Buttons settings';
+
+$string['auth_neon_button_div_width'] = 'Width (<em>0 = auto</em>)';
+$string['auth_neon_buttons_location'] = 'Buttons location';
+$string['auth_neon_display_inline'] = 'Inline';
+$string['auth_neon_display_block'] = 'Block';
+
+$string['auth_neon_margin_top_key'] = 'Margin top (px)';
+$string['auth_neon_margin_right_key'] = 'Margin right (px)';
+$string['auth_neon_margin_bottom_key'] = 'Margin bottom (px)';
+$string['auth_neon_margin_left_key'] = 'Margin left (px)';
+
+$string['auth_neon_div_settings'] = 'Buttons area settings';
+$string['auth_neon_div_location'] = 'Area location';
+$string['auth_neon_output_style_key'] = 'Live style';
+$string['auth_neon_bootstrap_fontawesome_needle'] = 'To make a correct output your theme is required CSS-framework Bootstrap and fonts Font-Awesome!';
+$string['auth_neon_output_php_code_key'] = 'Theme PHP-code';
+$string['auth_neon_output_settings'] = 'Output settings';
