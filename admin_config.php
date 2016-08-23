@@ -48,55 +48,7 @@ global $CFG;
     <td width="50%"><?php echo get_string('auth_neon_default_country_desc', 'auth_neon'); ?></td>
   </tr>
   <tr>
-    <td width="50%" colspan="2"><?php
-      echo html_writer::checkbox(
-          'auth_neon_can_confirm', 1,
-          isset($config->auth_neon_can_confirm) ? $config->auth_neon_can_confirm : 0,
-          get_string('auth_neon_can_confirm_key', 'auth_neon'), array('id' => 'auth_neon_can_confirm')
-      );
-      if( isset($err['auth_neon_can_confirm']) ){
-        echo $OUTPUT->error_text($err['auth_neon_can_confirm']);
-      } ?>
-    </td>
-    <td width="50%"><?php echo get_string('auth_neon_can_confirm_desc', 'auth_neon'); ?></td>
-  </tr>
-  <tr>
-    <td width="50%" colspan="2"><?php
-      echo html_writer::checkbox(
-          'auth_neon_retrieve_avatar', 1,
-          isset($config->auth_neon_retrieve_avatar) ? $config->auth_neon_retrieve_avatar : 0,
-          get_string('auth_neon_retrieve_avatar_key', 'auth_neon'), array('id' => 'auth_neon_retrieve_avatar')
-      );
-      if( isset($err['auth_neon_retrieve_avatar']) ){
-        echo $OUTPUT->error_text($err['auth_neon_retrieve_avatar']);
-      } ?>
-    </td>
-    <td width="50%"><?php echo get_string('auth_neon_retrieve_avatar_desc', 'auth_neon'); ?></td>
-  </tr>
-  <?php if( $CFG->debugdeveloper == 1 ) : ?>
-    <tr>
-      <td width="50%" colspan="2"><?php
-        echo html_writer::checkbox(
-            'auth_neon_dev_mode', 1,
-            isset($config->auth_neon_dev_mode) ? $config->auth_neon_dev_mode : 0,
-            get_string('auth_neon_dev_mode_key', 'auth_neon'), array('id' => 'auth_neon_dev_mode')
-        );
-        if( isset($err['auth_neon_dev_mode']) ){
-          echo $OUTPUT->error_text($err['auth_neon_dev_mode']);
-        } ?>
-      </td>
-      <td width="50%"><?php echo get_string('auth_neon_dev_mode_desc', 'auth_neon'); ?></td>
-    </tr>
-  <?php else : ?>
-
-  <?php endif; ?>
-
-  <tr>
-    <td colspan="3"><h3><?php echo get_string('auth_neon_settings', 'auth_neon');
-        if( !empty($config->auth_neon_client_id) ) :
-          echo ' ( ' . html_writer::link(new moodle_url('https://trial.z2systems.com/np/' . $config->auth_neon_client_id), get_string('auth_neon_dashboard', 'auth_neon'), array('target' => '_blank')) . ' )';
-        endif; ?>
-      </h3></td>
+    <td colspan="3"><h3><?php echo get_string('auth_neon_settings', 'auth_neon'); ?></h3></td>
   </tr>
   <tr>
     <td align="right" width="15%"><label
@@ -187,29 +139,6 @@ global $CFG;
       if( isset($err['auth_neon_button_text']) ){
         echo $OUTPUT->error_text($err['auth_neon_button_text']);
       } ?>
-    </td>
-  </tr>
-  <tr>
-    <td align="right" width="15%"><label
-          for="auth_neon_social_id_field"><?php echo get_string('auth_neon_binding_key', 'auth_neon'); ?></label>
-    </td>
-    <td width="35%"><?php
-      echo html_writer::select(
-          $this->_neon_get_user_info_fields(),
-          'auth_neon_social_id_field_disabled',
-          $config->auth_neon_social_id_field,
-          get_string('select') . '...',
-          array(
-              'id' => 'auth_neon_social_id_field',
-              'class' => 'auth_neon_social_id_field',
-              'disabled' => 'disabled'
-          )
-      );
-      if( isset($err['auth_neon_social_id_field']) ){
-        echo $OUTPUT->error_text($err['auth_neon_social_id_field']);
-      }
-      ?>
-      <!--input type="hidden" name="auth_neon_social_id_field" value="<?php echo $config->auth_neon_social_id_field; ?>" /-->
     </td>
   </tr>
 
@@ -443,53 +372,6 @@ global $CFG;
             ?>
           </td>
         </tr>
-      </table>
-    </td>
-  </tr>
-
-  <!--OUTPUT-->
-  <tr>
-    <td colspan="3">
-      <h3><?php echo get_string('auth_neon_output_settings', 'auth_neon'); ?></h3>
-    </td>
-  </tr>
-  <tr>
-    <td colspan="3">
-      <table class="generaltable" cellspacing="0" width="100%">
-        <thead>
-        <tr>
-          <th width="40%"><?php echo get_string('auth_neon_output_style_key', 'auth_neon'); ?></th>
-          <th width="60%"><?php echo get_string('auth_neon_output_php_code_key', 'auth_neon'); ?></th>
-        </tr>
-        </thead>
-        <tbody>
-        <?php
-        foreach( $this->_styles_array as $style_item ) : ?>
-          <tr>
-            <td>
-              <?php echo auth_neon_out::getInstance()->neon_output($style_item, true); ?>
-              <br/><em><?php echo $style_item; ?></em>
-              <?php
-              switch( $style_item ){
-                case 'bootstrap-font-awesome':
-                case 'bootstrap-font-awesome-simple':
-                  echo '<br /><small style="color:red">' . get_string('auth_neon_bootstrap_fontawesome_needle', 'auth_neon') . '</small>';
-                  break;
-              }
-              ?>
-            </td>
-            <td>
-              <code>&lt;?php if ( file_exists( $CFG->dirroot . '/auth/neon/out.php' ) ) :<br/>include_once
-                $CFG->dirroot . '/auth/neon/out.php';<br/>echo
-                auth_neon_out::getInstance()->neon_output('<?php echo $style_item; ?>');<br/>endif; ?&gt;
-              </code>
-              <br/><a
-                  href="<?php echo $CFG->wwwroot; ?>/auth/neon/htmlcode.php?style=<?php echo $style_item; ?>"
-                  target="_blank"><?php echo get_string('auth_neon_static_html', 'auth_neon'); ?></a>
-            </td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
       </table>
     </td>
   </tr>
