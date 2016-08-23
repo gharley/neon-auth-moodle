@@ -32,6 +32,7 @@ $string['auth_neon_org_id'] = 'Organization ID';
 $string['auth_neon_api_key'] = 'API Key';
 $string['auth_neon_client_id'] = 'Client ID';
 $string['auth_neon_client_secret_key'] = 'Secret key';
+$string['auth_neon_buttontext_key'] = 'Login Button Text';
 $string['auth_neon_button_text_default'] = 'Login with Neon CRM';
 $string['auth_neon_desc'] = '
     <ol>
@@ -41,4 +42,5 @@ $string['auth_neon_desc'] = '
       <li>Finally log in to NeonCRM as administrator and find your Client ID and </li>
       <li>Client Secret under OAuth on the System Settings Dashboard.</li>
     </ol>';
-$string['auth_neon_binding'] = 'NeonCRM Social ID';
+$string['auth_neon_binding_key'] = 'Binding';
+$string['auth_neon_binding'] = 'Neon CRM Social ID';

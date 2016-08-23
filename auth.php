@@ -235,6 +235,8 @@ class auth_plugin_neon extends auth_plugin_base{
 
       // save settings
       set_config('auth_neon_enabled', intval($config->auth_neon_enabled), 'auth/neon');
+      set_config('auth_neon_api_key', trim($config->auth_neon_api_key), 'auth/neon');
+      set_config('auth_neon_org_id', trim($config->auth_neon_org_id), 'auth/neon');
       set_config('auth_neon_client_id', trim($config->auth_neon_client_id), 'auth/neon');
       set_config('auth_neon_client_secret', trim($config->auth_neon_client_secret), 'auth/neon');
       set_config('auth_neon_button_text', trim($config->auth_neon_button_text), 'auth/neon');
@@ -267,6 +269,17 @@ class auth_plugin_neon extends auth_plugin_base{
     throw new moodle_exception('You do not have permissions', 'auth_neon');
   }
 
+
+  protected function _neon_get_user_info_fields() {
+    $ret_array = array();
+    if ( !empty( $this->_user_info_fields ) && is_array( $this->_user_info_fields ) ) {
+      foreach ($this->_user_info_fields as $item) {
+        $ret_array[$item->shortname] = $item->name;
+      }
+    }
+
+    return $ret_array;
+  }
 }
 
 

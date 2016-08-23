@@ -195,7 +195,7 @@ global $CFG;
     </td>
     <td width="35%"><?php
       echo html_writer::select(
-          $this->_neon_get_user_info_fields_array(),
+          $this->_neon_get_user_info_fields(),
           'auth_neon_social_id_field_disabled',
           $config->auth_neon_social_id_field,
           get_string('select') . '...',
@@ -210,23 +210,6 @@ global $CFG;
       }
       ?>
       <!--input type="hidden" name="auth_neon_social_id_field" value="<?php echo $config->auth_neon_social_id_field; ?>" /-->
-    </td>
-  </tr>
-  <tr>
-    <td align="right" width="15%"><label
-          for="auth_neon_google_order"><?php echo get_string('auth_neon_order', 'auth_neon'); ?></label></td>
-    <td width="35%"><?php echo html_writer::empty_tag('input',
-          array('type' => 'number',
-              'id' => 'auth_neon_google_order',
-              'name' => 'auth_neon_order[neoncrm]',
-              'class' => 'auth_neon_google_order',
-              'value' => array_search('neoncrm', $order_array),
-              'size' => 10,
-              'min' => 1,
-              'max' => 8,
-              'maxlength' => 1,
-              'autocomplete' => 'off')
-      ); ?>
     </td>
   </tr>
 
