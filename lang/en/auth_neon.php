@@ -57,3 +57,5 @@ $string['auth_neon_div_location'] = 'Area location';
 $string['auth_neon_output_style_key'] = 'Live style';
 $string['auth_neon_output_php_code_key'] = 'Theme PHP-code';
 $string['auth_neon_output_settings'] = 'Output settings';
+
+$string['auth_neon_empty_code_param'] = 'No code parameter returned. Check your settings in Neon';

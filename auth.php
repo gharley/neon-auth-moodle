@@ -133,7 +133,7 @@ class auth_plugin_neon extends auth_plugin_base{
         $params['client_secret'] = $this->_config->auth_neon_client_secret;
         $params['grant_type'] = $this->_settings['grant_type'];
         $params['code'] = $authorizationcode;
-        $params['redirect_uri'] = $CFG->wwwroot . '/auth/lenauth/redirect.php?auth_service=' . $authprovider;
+        $params['redirect_uri'] = $CFG->wwwroot . '/auth/neon/redirect.php?auth_service=' . $authprovider;
 
         $curl_tokens_values = $curl->post(
             $this->_settings['request_token_url'],
