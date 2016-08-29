@@ -38,15 +38,9 @@ class auth_plugin_neon extends auth_plugin_base{
 
   protected $_config;
   protected $_last_user_number = 0;
-  protected $_user_info_fields = array();
-  protected $_field_shortname;
-  protected $_field_id;
 
   private static $_instance;
 
-  /**
-   * Constructor.
-   */
   function auth_plugin_neon(){
     global $DB;
 
@@ -54,21 +48,23 @@ class auth_plugin_neon extends auth_plugin_base{
 
     $this->authtype = 'neon';
     $this->_config = get_config('auth/neon');
-    $this->_user_info_fields = $DB->get_records('user_info_field');
     $this->roleauth = 'auth_neon';
     $this->errorlogtag = '[AUTH neon]';
   }
 
-  /**
-   * Singleton
-   * @return object
-   */
   public static function getInstance(){
     if( !isset(self::$_instance) && !(self::$_instance instanceof auth_plugin_neon) ){
       self::$_instance = new self();
     }
 
     return self::$_instance;
+  }
+
+  private function showDataAndDie($data){
+    echo '<pre>';
+    print_r($data);
+    echo '</pre>';
+    die();
   }
 
   /**
@@ -91,9 +87,9 @@ class auth_plugin_neon extends auth_plugin_base{
     return false;
   }
 
-  protected function _generate_query_data(array $array){
-
+  protected function _get_query_data(array $array){
     $query_array = array();
+
     foreach( $array as $key => $value ){
       $query_array[] = urlencode($key) . '=' . urlencode($value);
     }
@@ -112,13 +108,9 @@ class auth_plugin_neon extends auth_plugin_base{
     $authorizationcode = optional_param('oauthcode', '', PARAM_TEXT);
 
     if( !empty($authorizationcode) ){
-      $authprovider = $this->authtype;
+      @setcookie($this->authtype, $this->authtype, time() + 604800, '/');
 
-      @setcookie('auth_neon_authprovider', $authprovider, time() + 604800, '/');
-
-      $this->_field_id = $this->_neon_get_fieldid();//TODO
-
-      if( !isset($_COOKIE[$authprovider]['access_token']) ) $send_oauth_request = true;
+      if( !isset($_COOKIE[$this->authtype]['access_token']) ) $send_oauth_request = true;
 
       // require cURL from Moodle core
       require_once($CFG->libdir . '/filelib.php');
@@ -133,11 +125,11 @@ class auth_plugin_neon extends auth_plugin_base{
         $params['client_secret'] = $this->_config->auth_neon_client_secret;
         $params['grant_type'] = $this->_settings['grant_type'];
         $params['code'] = $authorizationcode;
-        $params['redirect_uri'] = $CFG->wwwroot . '/auth/neon/redirect.php?auth_service=' . $authprovider;
+        $params['redirect_uri'] = $CFG->wwwroot . '/auth/neon/redirect.php?auth_service=' . $this->authtype;
 
         $curl_tokens_values = $curl->post(
             $this->_settings['request_token_url'],
-            $this->_generate_query_data($params)
+            $this->_get_query_data($params)
         );
       }
 
@@ -148,11 +140,10 @@ class auth_plugin_neon extends auth_plugin_base{
         // parse token values
         if( $send_oauth_request || !isset($_COOKIE['access_token']) ){
           $token_values = json_decode($curl_tokens_values, true);
-          $expires = $token_values['expires_in'] ? $token_values['expires_in'] : 86400; // 86400 = 24 hours
           $access_token = $token_values['access_token'];
 
-          if( !empty($expires) && !empty($access_token) ){
-            setcookie('access_token', $access_token, time() + $expires, '/');
+          if( !empty($access_token) ){
+            setcookie($this->authtype . '[access_token]', $access_token, time() + 86400, '/'); // 86400 = 24 hours
           }else{
             //check native errors if exists
             if( isset($token_values['error']) ){
@@ -167,8 +158,8 @@ class auth_plugin_neon extends auth_plugin_base{
             }
           }
         }else{
-          if( isset($_COOKIE['access_token']) ){
-            $access_token = $_COOKIE['access_token'];
+          if( isset($_COOKIE[$this->authtype . '[access_token]']) ){
+            $access_token = $_COOKIE[$this->authtype . '[access_token]'];
           }else{
             throw new moodle_exception('Someting wrong, maybe expires', 'auth_neon');
           }
@@ -176,27 +167,25 @@ class auth_plugin_neon extends auth_plugin_base{
       }
 
       if( !empty($access_token) ){
-        $queryparams = array();
         $request_api_url = $this->_settings['request_api_url'];
-
-        $is_verified = true;
 
         $apiParams = array();
         $apiParams['login.apiKey'] = $this->_config->auth_neon_api_key;
         $apiParams['login.orgid'] = $this->_config->auth_neon_org_id;
 
-        $curl_response = $curl->post($request_api_url . '/common/login', $this->_generate_query_data($apiParams));
+        $curl_response = $curl->post($request_api_url . '/common/login', $this->_get_query_data($apiParams));
         $curl_session_data = json_decode($curl_response, true);
 
+        $queryparams = array();
         $queryparams['userSessionId'] = $curl_session_data['loginResponse']['userSessionId'];
         $queryparams['accountId'] = $access_token;
 
-        $curl_response = $curl->post($request_api_url . '/account/retrieveIndividualAccount', $this->_generate_query_data($queryparams));
+        $curl_response = $curl->post($request_api_url . '/account/retrieveIndividualAccount', $this->_get_query_data($queryparams));
         $curl_final_data = json_decode($curl_response, true);
         $neon_individual = $curl_final_data['retrieveIndividualAccountResponse']['individualAccount'];
         $neonuser = $neon_individual['primaryContact'];
 
-        $social_uid = $neonuser['contactId'];
+        $contactId = $neonuser['contactId'];
         $user_email = $neonuser['email1'];
         $first_name = $neonuser['firstName'];
         $last_name = $neonuser['lastName'];
@@ -205,32 +194,29 @@ class auth_plugin_neon extends auth_plugin_base{
          * Check for email returned by webservice. If exist - check for user with this email in Moodle Database
          */
         if( !empty($curl_final_data) ){
-          if( !empty($social_uid) ){
+          if( !empty($contactId) ){
             if( !empty($user_email) ){
               if( $err = email_is_not_allowed($user_email) ){
                 throw new moodle_exception($err, 'auth_neon');
               }
+
               $user_neon = $DB->get_record('user', array('email' => $user_email, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
-            }else{
-              if( empty($user_neon) ){
-                $user_neon = $this->_neon_get_userdata_by_social_id($social_uid);
-              }
             }
           }else{
-            throw new moodle_exception('Empty Social UID', 'auth_neon');
+            throw new moodle_exception('Empty User ID', 'auth_neon');
           }
         }else{
-          @setcookie($authprovider, null, time() - 3600);
+          @setcookie($this->authtype, null, time() - 3600);
           throw new moodle_exception('Final request returns nothing', 'auth_neon');
         }
-
-        $last_user_number = intval($this->_config->auth_neon_last_user_number);
-        $last_user_number = empty($last_user_number) ? 1 : $last_user_number + 1;
 
         /**
          * If user with email from webservice not exists, we will create an account
          */
         if( empty($user_neon) ){
+          $last_user_number = intval($this->_config->auth_neon_last_user_number);
+          $last_user_number = empty($last_user_number) ? 1 : $last_user_number + 1;
+
           $username = $this->_config->auth_neon_user_prefix . $last_user_number;
 
           //check for username exists in DB
@@ -239,7 +225,7 @@ class auth_plugin_neon extends auth_plugin_base{
 
           while( !empty($user_neon_check) ){
             $user_neon_check = $user_neon_check + 1;
-            $username = $this->_config->auth_neon_user_prefix . $last_user_number;
+            $username = $this->_config->auth_neon_user_prefix . ++$last_user_number;
             $user_neon_check = $DB->get_record('user', array('username' => $username));
             $i_check++;
             if( $i_check > 20 ){
@@ -248,25 +234,10 @@ class auth_plugin_neon extends auth_plugin_base{
           }
           // create user HERE
           $user_neon = create_user_record($username, '', 'neon');
+
+          set_config('auth_neon_last_user_number', $last_user_number, 'auth/neon');
         }else{
           $username = $user_neon->username;
-        }
-
-        set_config('auth_neon_last_user_number', $last_user_number, 'auth/neon');
-
-        if( !empty($social_uid) ){
-          $user_social_uid_custom_field = new stdClass;
-          $user_social_uid_custom_field->userid = $user_neon->id;
-          $user_social_uid_custom_field->fieldid = $this->_field_id;
-          $user_social_uid_custom_field->data = $social_uid;
-
-          if( !$DB->record_exists('user_info_data', array('userid' => $user_neon->id, 'fieldid' => $this->_field_id)) ){
-            $DB->insert_record('user_info_data', $user_social_uid_custom_field);
-          }else{
-            $record = $DB->get_record('user_info_data', array('userid' => $user_neon->id, 'fieldid' => $this->_field_id));
-            $user_social_uid_custom_field->id = $record->id;
-            $DB->update_record('user_info_data', $user_social_uid_custom_field);
-          }
         }
 
         // complete Authenticate user
@@ -321,6 +292,12 @@ class auth_plugin_neon extends auth_plugin_base{
     }
   }
 
+  public function logoutpage_hook(){
+    @setcookie('auth_neon_authprovider', null, -1, '/');
+
+    return true;
+  }
+
   function is_internal(){
     return false;
   }
@@ -333,54 +310,6 @@ class auth_plugin_neon extends auth_plugin_base{
 
     if( !isset($config->auth_neon_default_country) ){
       $config->auth_neon_default_country = '';
-    }
-
-    if( !isset($config->auth_neon_display_buttons) ){
-      $config->auth_neon_display_buttons = 'inline-block';
-    }
-
-    if( !isset($config->auth_neon_button_width) ){
-      $config->auth_neon_button_width = 0;
-    }
-
-    if( !isset($config->auth_neon_button_margin_top) ){
-      $config->auth_neon_button_margin_top = 10;
-    }
-
-    if( !isset($config->auth_neon_button_margin_right) ){
-      $config->auth_neon_button_margin_right = 10;
-    }
-
-    if( !isset($config->auth_neon_button_margin_bottom) ){
-      $config->auth_neon_button_margin_bottom = 10;
-    }
-
-    if( !isset($config->auth_neon_button_margin_left) ){
-      $config->auth_neon_button_margin_left = 10;
-    }
-
-    if( !isset($config->auth_neon_display_div) ){
-      $config->auth_neon_display_div = 'block';
-    }
-
-    if( !isset($config->auth_neon_div_width) ){
-      $config->auth_neon_div_width = 0;
-    }
-
-    if( !isset($config->auth_neon_div_margin_top) ){
-      $config->auth_neon_div_margin_top = 0;
-    }
-
-    if( !isset($config->auth_neon_div_margin_right) ){
-      $config->auth_neon_div_margin_right = 0;
-    }
-
-    if( !isset($config->auth_neon_div_margin_bottom) ){
-      $config->auth_neon_div_margin_bottom = 0;
-    }
-
-    if( !isset($config->auth_neon_div_margin_left) ){
-      $config->auth_neon_div_margin_left = 0;
     }
 
     if( !isset($config->auth_neon_api_key) ){
@@ -428,7 +357,6 @@ class auth_plugin_neon extends auth_plugin_base{
       $this->setDefaults($config); // Set defaults for uninitialized fields
 
       // save settings
-      set_config('auth_neon_enabled', intval($config->auth_neon_enabled), 'auth/neon');
       set_config('auth_neon_api_key', trim($config->auth_neon_api_key), 'auth/neon');
       set_config('auth_neon_org_id', trim($config->auth_neon_org_id), 'auth/neon');
       set_config('auth_neon_client_id', trim($config->auth_neon_client_id), 'auth/neon');
@@ -437,21 +365,6 @@ class auth_plugin_neon extends auth_plugin_base{
 
       set_config('auth_neon_user_prefix', trim($config->auth_neon_user_prefix), 'auth/neon');
       set_config('auth_neon_default_country', trim($config->auth_neon_default_country), 'auth/neon');
-      set_config('auth_neon_dev_mode', intval($config->auth_neon_dev_mode), 'auth/neon');
-
-      set_config('auth_neon_display_buttons', trim($config->auth_neon_display_buttons), 'auth/neon');
-      set_config('auth_neon_button_width', intval($config->auth_neon_button_width), 'auth/neon');
-      set_config('auth_neon_button_margin_top', intval($config->auth_neon_button_margin_top), 'auth/neon');
-      set_config('auth_neon_button_margin_right', intval($config->auth_neon_button_margin_right), 'auth/neon');
-      set_config('auth_neon_button_margin_bottom', intval($config->auth_neon_button_margin_bottom), 'auth/neon');
-      set_config('auth_neon_button_margin_left', intval($config->auth_neon_button_margin_left), 'auth/neon');
-
-      set_config('auth_neon_display_div', trim($config->auth_neon_display_div), 'auth/neon');
-      set_config('auth_neon_div_width', intval($config->auth_neon_div_width), 'auth/neon');
-      set_config('auth_neon_div_margin_top', intval($config->auth_neon_div_margin_top), 'auth/neon');
-      set_config('auth_neon_div_margin_right', intval($config->auth_neon_div_margin_right), 'auth/neon');
-      set_config('auth_neon_div_margin_bottom', intval($config->auth_neon_div_margin_bottom), 'auth/neon');
-      set_config('auth_neon_div_margin_left', intval($config->auth_neon_div_margin_left), 'auth/neon');
 
       return true;
     }

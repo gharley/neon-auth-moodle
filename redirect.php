@@ -12,7 +12,7 @@ if( empty($code) ){
   $error_code = optional_param('error', '', PARAM_TEXT);
 
   if( empty($error_code) ){
-    $error_code = get_string('auth_neon_empty_code_param', 'auth_lenauth');
+    $error_code = get_string('auth_neon_empty_code_param', 'auth_neon');
   }
 }
 
