@@ -108,9 +108,7 @@ class auth_plugin_neon extends auth_plugin_base{
     $authorizationcode = optional_param('oauthcode', '', PARAM_TEXT);
 
     if( !empty($authorizationcode) ){
-      @setcookie($this->authtype, $this->authtype, time() + 604800, '/');
-
-      if( !isset($_COOKIE[$this->authtype]['access_token']) ) $send_oauth_request = true;
+      if( !isset($_COOKIE[$this->authtype . '_access_token']) ) $send_oauth_request = true;
 
       // require cURL from Moodle core
       require_once($CFG->libdir . '/filelib.php');
@@ -138,12 +136,12 @@ class auth_plugin_neon extends auth_plugin_base{
         $token_values = array();
 
         // parse token values
-        if( $send_oauth_request || !isset($_COOKIE['access_token']) ){
+        if( $send_oauth_request || !isset($_COOKIE[$this->authtype . '_access_token']) ){
           $token_values = json_decode($curl_tokens_values, true);
           $access_token = $token_values['access_token'];
 
           if( !empty($access_token) ){
-            setcookie($this->authtype . '[access_token]', $access_token, time() + 86400, '/'); // 86400 = 24 hours
+            setcookie($this->authtype . '_access_token', $access_token, time() + 86400, '/'); // 86400 = 24 hours
           }else{
             //check native errors if exists
             if( isset($token_values['error']) ){
@@ -158,8 +156,8 @@ class auth_plugin_neon extends auth_plugin_base{
             }
           }
         }else{
-          if( isset($_COOKIE[$this->authtype . '[access_token]']) ){
-            $access_token = $_COOKIE[$this->authtype . '[access_token]'];
+          if( isset($_COOKIE[$this->authtype . '_access_token']) ){
+            $access_token = $_COOKIE[$this->authtype . '_access_token'];
           }else{
             throw new moodle_exception('Someting wrong, maybe expires', 'auth_neon');
           }
@@ -206,7 +204,7 @@ class auth_plugin_neon extends auth_plugin_base{
             throw new moodle_exception('Empty User ID', 'auth_neon');
           }
         }else{
-          @setcookie($this->authtype, null, time() - 3600);
+          @setcookie($this->authtype . '_access_token', null, time() - 3600);
           throw new moodle_exception('Final request returns nothing', 'auth_neon');
         }
 
@@ -293,7 +291,7 @@ class auth_plugin_neon extends auth_plugin_base{
   }
 
   public function logoutpage_hook(){
-    @setcookie('auth_neon_authprovider', null, -1, '/');
+    @setcookie($this->authtype . '_access_token', null, -1, '/');
 
     return true;
   }
