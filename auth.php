@@ -60,11 +60,12 @@ class auth_plugin_neon extends auth_plugin_base{
     return self::$_instance;
   }
 
-  private function showDataAndDie($data){
+  private function showDataAndDie($data, $die = false){
     echo '<pre>';
     print_r($data);
     echo '</pre>';
-    die();
+
+    if( $die == true ) die();
   }
 
   /**
@@ -177,65 +178,69 @@ class auth_plugin_neon extends auth_plugin_base{
         $queryparams = array();
         $queryparams['userSessionId'] = $curl_session_data['loginResponse']['userSessionId'];
         $queryparams['accountId'] = $access_token;
+        $encodedParams = $this->_get_query_data($queryparams);
 
-        $curl_response = $curl->post($request_api_url . '/account/retrieveIndividualAccount', $this->_get_query_data($queryparams));
-        $curl_final_data = json_decode($curl_response, true);
-        $neon_individual = $curl_final_data['retrieveIndividualAccountResponse']['individualAccount'];
-        $neonuser = $neon_individual['primaryContact'];
+        $curl_response = $curl->post($request_api_url . '/account/retrieveIndividualAccount', $encodedParams);
+        $decoded_data = json_decode($curl_response, true);
+
+        // If query fails try getting org data
+        if( $decoded_data['retrieveIndividualAccountResponse']['operationResult'] == 'SUCCESS' ){
+          $neon_account = $decoded_data['retrieveIndividualAccountResponse']['individualAccount'];
+          $isOrg = false;
+        }else{
+          $curl_response = $curl->post($request_api_url . '/account/retrieveOrganizationAccount', $encodedParams);
+          $decoded_data = json_decode($curl_response, true);
+
+          if( $decoded_data['retrieveOrganizationAccountResponse']['operationResult'] == 'SUCCESS' ){
+            $neon_account = $decoded_data['retrieveOrganizationAccountResponse']['organizationAccount'];
+            $isOrg = true;
+          }else{
+            throw new moodle_exception('Unable to log in as individual or organization', 'auth_neon');
+          }
+        }
+        $this->showDataAndDie($curl_response);
+
+        $username = $neon_account['login']['username'];
+        $neonuser = $neon_account['primaryContact'];
 
         $contactId = $neonuser['contactId'];
         $user_email = $neonuser['email1'];
         $first_name = $neonuser['firstName'];
         $last_name = $neonuser['lastName'];
 
-        /**
-         * Check for email returned by webservice. If exist - check for user with this email in Moodle Database
-         */
-        if( !empty($curl_final_data) ){
-          if( !empty($contactId) ){
-            if( !empty($user_email) ){
-              if( $err = email_is_not_allowed($user_email) ){
-                throw new moodle_exception($err, 'auth_neon');
-              }
-
-              $user_neon = $DB->get_record('user', array('email' => $user_email, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
-            }
-          }else{
-            throw new moodle_exception('Empty User ID', 'auth_neon');
-          }
+        if( !empty($decoded_data) && !empty($username) ){
+          $user_neon = $DB->get_record('user', array('username' => $username, auth => $this->authtype, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
         }else{
           @setcookie($this->authtype . '_access_token', null, time() - 3600);
-          throw new moodle_exception('Final request returns nothing', 'auth_neon');
+          throw new moodle_exception('Login failed', 'auth_neon');
         }
 
-        /**
-         * If user with email from webservice not exists, we will create an account
-         */
+        $queryparams = array();
+        $queryparams['userSessionId'] = $curl_session_data['loginResponse']['userSessionId'];
+        $queryparams['page.pageSize'] = 200;
+        $queryparams['outputfields.idnamepair.name'] = 'Account Login Name';
+        $queryparams['outputfields.idnamepair.name'] = 'Company Name';
+        $queryparams['outputfields.idnamepair.name'] = 'Membership Name';
+        $queryparams['outputfields.idnamepair.name'] = 'Membership Status';
+        $queryparams['searches.search.key'] = 'Account ID';
+        $queryparams['searches.search.searchOperator'] = 'EQUAL';
+        $queryparams['searches.search.value'] = $access_token;
+        $encodedParams = $this->_get_query_data($queryparams);
+
+        $curl_response = $curl->post($request_api_url . '/membership/listMemberships', $encodedParams);
+        $this->showDataAndDie($curl_response, true);
+        $decoded_data = json_decode($curl_response, true);
+
         if( empty($user_neon) ){
-          $last_user_number = intval($this->_config->auth_neon_last_user_number);
-          $last_user_number = empty($last_user_number) ? 1 : $last_user_number + 1;
-
-          $username = $this->_config->auth_neon_user_prefix . $last_user_number;
-
           //check for username exists in DB
           $user_neon_check = $DB->get_record('user', array('username' => $username));
-          $i_check = 0;
 
-          while( !empty($user_neon_check) ){
-            $user_neon_check = $user_neon_check + 1;
-            $username = $this->_config->auth_neon_user_prefix . ++$last_user_number;
-            $user_neon_check = $DB->get_record('user', array('username' => $username));
-            $i_check++;
-            if( $i_check > 20 ){
-              throw new moodle_exception('Something wrong with usernames of neon users. Limit of 20 queries is out. Check last mdl_user table of Moodle', 'auth_neon');
-            }
+          if( !empty($user_neon_check) ){
+            throw new moodle_exception('Username exists with a different auth type', 'auth_neon');
           }
+
           // create user HERE
           $user_neon = create_user_record($username, '', 'neon');
-
-          set_config('auth_neon_last_user_number', $last_user_number, 'auth/neon');
-        }else{
-          $username = $user_neon->username;
         }
 
         // complete Authenticate user
@@ -250,9 +255,11 @@ class auth_plugin_neon extends auth_plugin_base{
         if( !empty($first_name) ){
           $newuser->firstname = $first_name;
         }
+
         if( !empty($last_name) ){
           $newuser->lastname = $last_name;
         }
+
         if( !empty($this->_config->auth_neon_default_country) ){
           $newuser->country = $this->_config->auth_neon_default_country;
         }
