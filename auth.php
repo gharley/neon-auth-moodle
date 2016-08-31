@@ -17,6 +17,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir . '/authlib.php');
+require_once('neon.php');
 
 /**
  * Plugin for neon authentication.
@@ -65,7 +66,7 @@ class auth_plugin_neon extends auth_plugin_base{
     print_r($data);
     echo '</pre>';
 
-    if( $die == true ) die();
+    if( isset($die) && $die == true ) die();
   }
 
   /**
@@ -166,72 +167,63 @@ class auth_plugin_neon extends auth_plugin_base{
       }
 
       if( !empty($access_token) ){
-        $request_api_url = $this->_settings['request_api_url'];
+        $neon = new Neon();
+        $keys = array(
+            'orgId' => $this->_config->auth_neon_org_id,
+            'apiKey' => $this->_config->auth_neon_api_key
+        );
 
-        $apiParams = array();
-        $apiParams['login.apiKey'] = $this->_config->auth_neon_api_key;
-        $apiParams['login.orgid'] = $this->_config->auth_neon_org_id;
+        $neon->login($keys);
 
-        $curl_response = $curl->post($request_api_url . '/common/login', $this->_get_query_data($apiParams));
-        $curl_session_data = json_decode($curl_response, true);
+        $queryparams = array(
+            'method' => 'account/retrieveIndividualAccount',
+            'parameters' => array(
+                'accountId' =>  $access_token,
+            )
+        );
 
-        $queryparams = array();
-        $queryparams['userSessionId'] = $curl_session_data['loginResponse']['userSessionId'];
-        $queryparams['accountId'] = $access_token;
-        $encodedParams = $this->_get_query_data($queryparams);
-
-        $curl_response = $curl->post($request_api_url . '/account/retrieveIndividualAccount', $encodedParams);
-        $decoded_data = json_decode($curl_response, true);
+        $isOrg = false;
+        $result = $neon->go($queryparams);
 
         // If query fails try getting org data
-        if( $decoded_data['retrieveIndividualAccountResponse']['operationResult'] == 'SUCCESS' ){
-          $neon_account = $decoded_data['retrieveIndividualAccountResponse']['individualAccount'];
-          $isOrg = false;
-        }else{
-          $curl_response = $curl->post($request_api_url . '/account/retrieveOrganizationAccount', $encodedParams);
-          $decoded_data = json_decode($curl_response, true);
-
-          if( $decoded_data['retrieveOrganizationAccountResponse']['operationResult'] == 'SUCCESS' ){
-            $neon_account = $decoded_data['retrieveOrganizationAccountResponse']['organizationAccount'];
-            $isOrg = true;
-          }else{
-            throw new moodle_exception('Unable to log in as individual or organization', 'auth_neon');
-          }
+        if( $result['operationResult'] != 'SUCCESS' ){
+          $queryparams['method'] = 'account/retrieveOrganizationAccount';
+          $isOrg = true;
+          $result = $neon->go($queryparams);
         }
-        $this->showDataAndDie($curl_response);
 
-        $username = $neon_account['login']['username'];
-        $neonuser = $neon_account['primaryContact'];
+        if( $result['operationResult'] == 'SUCCESS' ){
+          $neon_account = $isOrg ? $result['organizationAccount'] : $result['individualAccount'];
 
-        $contactId = $neonuser['contactId'];
-        $user_email = $neonuser['email1'];
-        $first_name = $neonuser['firstName'];
-        $last_name = $neonuser['lastName'];
+          $username = $neon_account['login']['username'];
+          $contact = $neon_account['primaryContact'];
 
-        if( !empty($decoded_data) && !empty($username) ){
-          $user_neon = $DB->get_record('user', array('username' => $username, auth => $this->authtype, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
+          $contactId = $contact['contactId'];
+          $user_email = $contact['email1'];
+          $first_name = $contact['firstName'];
+          $last_name = $contact['lastName'];
+        }else{
+          throw new moodle_exception('Unable to log in as individual or organization', 'auth_neon');
+        }
+
+        $queryparams = array(
+            'method' => 'membership/listMembershipHistory',
+            'parameters' => array(
+                'accountId' =>  $access_token,
+            )
+        );
+
+        $result = $neon->go($queryparams);
+//        $this->showDataAndDie($result, true);
+
+        if( !empty($username) ){
+          $moodle_user = $DB->get_record('user', array('username' => $username, auth => $this->authtype, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
         }else{
           @setcookie($this->authtype . '_access_token', null, time() - 3600);
           throw new moodle_exception('Login failed', 'auth_neon');
         }
 
-        $queryparams = array();
-        $queryparams['userSessionId'] = $curl_session_data['loginResponse']['userSessionId'];
-        $queryparams['page.pageSize'] = 200;
-        $queryparams['outputfields.idnamepair.name'] = 'Account Login Name';
-        $queryparams['outputfields.idnamepair.name'] = 'Company Name';
-        $queryparams['outputfields.idnamepair.name'] = 'Membership Name';
-        $queryparams['outputfields.idnamepair.name'] = 'Membership Status';
-        $queryparams['searches.search.key'] = 'Account ID';
-        $queryparams['searches.search.searchOperator'] = 'EQUAL';
-        $queryparams['searches.search.value'] = $access_token;
-        $encodedParams = $this->_get_query_data($queryparams);
-
-        $curl_response = $curl->post($request_api_url . '/membership/listMemberships', $encodedParams);
-        $this->showDataAndDie($curl_response, true);
-        $decoded_data = json_decode($curl_response, true);
-
-        if( empty($user_neon) ){
+        if( empty($moodle_user) ){
           //check for username exists in DB
           $user_neon_check = $DB->get_record('user', array('username' => $username));
 
@@ -240,7 +232,7 @@ class auth_plugin_neon extends auth_plugin_base{
           }
 
           // create user HERE
-          $user_neon = create_user_record($username, '', 'neon');
+          $moodle_user = create_user_record($username, '', 'neon');
         }
 
         // complete Authenticate user
@@ -264,23 +256,23 @@ class auth_plugin_neon extends auth_plugin_base{
           $newuser->country = $this->_config->auth_neon_default_country;
         }
 
-        if( $user_neon ){
-          if( $user_neon->suspended == 1 ){
+        if( $moodle_user ){
+          if( $moodle_user->suspended == 1 ){
             throw new moodle_exception('auth_neon_user_suspended', 'auth_neon');
           }
 
           if( !empty($newuser) ){
-            $newuser->id = $user_neon->id;
-            $user_neon = (object)array_merge((array)$user_neon, (array)$newuser);
-            $DB->update_record('user', $user_neon);
+            $newuser->id = $moodle_user->id;
+            $moodle_user = (object)array_merge((array)$moodle_user, (array)$newuser);
+            $DB->update_record('user', $moodle_user);
           }
 
-          complete_user_login($user_neon);
+          complete_user_login($moodle_user);
 
           // Redirection
           $urltogo = $CFG->wwwroot;
 
-          if( user_not_fully_set_up($user_neon) ){
+          if( user_not_fully_set_up($moodle_user) ){
             $urltogo = $CFG->wwwroot . '/user/edit.php';
           }else if( isset($SESSION->wantsurl) && (strpos($SESSION->wantsurl, $CFG->wwwroot) === 0) ){
             $urltogo = $SESSION->wantsurl;
