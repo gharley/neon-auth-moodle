@@ -89,6 +89,28 @@ class auth_plugin_neon extends auth_plugin_base{
     return false;
   }
 
+  /**
+   * Use this function to gather and save additional data about the user logging in.
+   * The default implementation checks Neon Memberships and maps them to Moodle enrolments
+   * but feel free to completely rewrite this to do whatever you nedd for you implementation.
+   *
+   * @param Neon $neon - The already logged in Neon API object for querying Neon data
+   * @return null
+   */
+  protected function _get_additional_data(Neon $neon, $access_token){
+    global $DB;
+
+    $queryparams = array(
+        'method' => 'membership/listMembershipHistory',
+        'parameters' => array(
+            'accountId' =>  $access_token,
+        )
+    );
+
+    $result = $neon->go($queryparams);
+//        $this->showDataAndDie($result, true);
+  }
+
   protected function _get_query_data(array $array){
     $query_array = array();
 
@@ -206,16 +228,6 @@ class auth_plugin_neon extends auth_plugin_base{
           throw new moodle_exception('Unable to log in as individual or organization', 'auth_neon');
         }
 
-        $queryparams = array(
-            'method' => 'membership/listMembershipHistory',
-            'parameters' => array(
-                'accountId' =>  $access_token,
-            )
-        );
-
-        $result = $neon->go($queryparams);
-//        $this->showDataAndDie($result, true);
-
         if( !empty($username) ){
           $moodle_user = $DB->get_record('user', array('username' => $username, auth => $this->authtype, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
         }else{
@@ -234,6 +246,9 @@ class auth_plugin_neon extends auth_plugin_base{
           // create user HERE
           $moodle_user = create_user_record($username, '', 'neon');
         }
+
+        // Gather any additional data for later use
+        $this->_get_additional_data($neon, $access_token);
 
         // complete Authenticate user
         authenticate_user_login($username, null);
