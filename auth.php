@@ -108,7 +108,7 @@ class auth_plugin_neon extends auth_plugin_base{
     );
 
     $result = $neon->go($queryparams);
-//        $this->showDataAndDie($result, true);
+//    $this->showDataAndDie($result, true);
   }
 
   protected function _get_query_data(array $array){
@@ -121,7 +121,41 @@ class auth_plugin_neon extends auth_plugin_base{
     return join('&', $query_array);
   }
 
-  /**
+  function get_userinfo($username) {
+    $neon = new Neon();
+    $keys = array(
+        'orgId' => $this->_config->auth_neon_org_id,
+        'apiKey' => $this->_config->auth_neon_api_key
+    );
+    $user_info = array();
+
+    $neon->login($keys);
+
+    $search = array(
+        'method' => 'account/listAccounts',
+        'criteria' => array(
+            array('Account Login Name', 'EQUAL', $username)
+        ),
+        'columns' => array(
+          'standardFields' => array('Account Type', 'Email 1', 'First Name', 'Last Name', 'City')
+        )
+    );
+
+    $response = $neon->search($search);
+    if( $response['operationResult'] == 'SUCCESS' ){
+      $searchResults = $response['searchResults'][0];
+
+      $user_info['is_org'] = $searchResults['Account Type'] == 'Organization' ? 1 : 0;
+      $user_info['email'] = $searchResults['Email 1'];
+      $user_info['firstname'] = $searchResults['First Name'];
+      $user_info['lastname'] = $searchResults['Last Name'];
+      $user_info['city'] = $searchResults['City'];
+    }
+
+    return $user_info;
+  }
+
+    /**
    * This is where the OAuth request is made, if necessary
    */
   function loginpage_hook(){
@@ -197,33 +231,21 @@ class auth_plugin_neon extends auth_plugin_base{
 
         $neon->login($keys);
 
-        $queryparams = array(
-            'method' => 'account/retrieveIndividualAccount',
-            'parameters' => array(
-                'accountId' =>  $access_token,
+        $search = array(
+            'method' => 'account/listAccounts',
+            'criteria' => array(
+                array('Account ID', 'EQUAL', $access_token)
+            ),
+            'columns' => array(
+                'standardFields' => array('Account Login Name')
             )
         );
 
-        $isOrg = false;
-        $result = $neon->go($queryparams);
+        $searchResult = $neon->search($search);
+        if( $searchResult['operationResult'] == 'SUCCESS' ){
+          $username = $searchResult['searchResults'][0]['Account Login Name'];
 
-        // If query fails try getting org data
-        if( $result['operationResult'] != 'SUCCESS' ){
-          $queryparams['method'] = 'account/retrieveOrganizationAccount';
-          $isOrg = true;
-          $result = $neon->go($queryparams);
-        }
-
-        if( $result['operationResult'] == 'SUCCESS' ){
-          $neon_account = $isOrg ? $result['organizationAccount'] : $result['individualAccount'];
-
-          $username = $neon_account['login']['username'];
-          $contact = $neon_account['primaryContact'];
-
-          $contactId = $contact['contactId'];
-          $user_email = $contact['email1'];
-          $first_name = $contact['firstName'];
-          $last_name = $contact['lastName'];
+          $user_info = $this->get_userinfo($username);
         }else{
           throw new moodle_exception('Unable to log in as individual or organization', 'auth_neon');
         }
@@ -255,16 +277,20 @@ class auth_plugin_neon extends auth_plugin_base{
 
         // fill $newuser object with response data from webservices
         $newuser = new stdClass();
-        if( !empty($user_email) ){
-          $newuser->email = $user_email;
+        if( !empty($user_info['email']) ){
+          $newuser->email = $user_info['email'];
         }
 
-        if( !empty($first_name) ){
-          $newuser->firstname = $first_name;
+        if( !empty($user_info['firstName']) ){
+          $newuser->firstname = $user_info['firstName'];
         }
 
-        if( !empty($last_name) ){
-          $newuser->lastname = $last_name;
+        if( !empty($user_info['lastName']) ){
+          $newuser->lastname = $user_info['lastName'];
+        }
+
+        if( !empty($user_info['city']) ){
+          $newuser->city = $user_info['city'];
         }
 
         if( !empty($this->_config->auth_neon_default_country) ){
