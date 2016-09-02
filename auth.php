@@ -100,6 +100,8 @@ class auth_plugin_neon extends auth_plugin_base{
   protected function _get_additional_data(Neon $neon, $access_token){
     global $DB;
 
+    $result = '';
+
     $queryparams = array(
         'method' => 'membership/listMembershipHistory',
         'parameters' => array(
@@ -107,8 +109,20 @@ class auth_plugin_neon extends auth_plugin_base{
         )
     );
 
-    $result = $neon->go($queryparams);
-//    $this->showDataAndDie($result, true);
+    $queryResult = $neon->go($queryparams);
+//    $this->showDataAndDie($queryResult);
+    if( $queryResult['operationResult'] == 'SUCCESS' ){
+      $memberships = array();
+
+      foreach( $queryResult['membershipResults']['membershipResult'] as $membershipResult ){
+        $memberships[] = $membershipResult['membershipName'];
+      }
+
+      $result = implode(',', $memberships);
+//      $this->showDataAndDie($result, true);
+    }
+
+    return $result;
   }
 
   protected function _get_query_data(array $array){
