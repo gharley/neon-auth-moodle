@@ -91,13 +91,14 @@ class auth_plugin_neon extends auth_plugin_base{
 
   /**
    * Use this function to gather and save additional data about the user logging in.
-   * The default implementation checks Neon Memberships and maps them to Moodle enrolments
-   * but feel free to completely rewrite this to do whatever you nedd for you implementation.
+   * The default implementation saves Neon Membership data to the user_info_data table
+   * for use by the accompanying enrol_neon plugin. Feel free to completely rewrite this
+   * to do whatever you need for you implementation.
    *
    * @param Neon $neon - The already logged in Neon API object for querying Neon data
    * @return null
    */
-  protected function _get_additional_data(Neon $neon, $access_token){
+  protected function _get_additional_data(Neon $neon, $access_token, $user){
     global $DB;
 
     $result = '';
@@ -110,19 +111,46 @@ class auth_plugin_neon extends auth_plugin_base{
     );
 
     $queryResult = $neon->go($queryparams);
-//    $this->showDataAndDie($queryResult);
+
     if( $queryResult['operationResult'] == 'SUCCESS' ){
       $memberships = array();
 
       foreach( $queryResult['membershipResults']['membershipResult'] as $membershipResult ){
-        $memberships[] = $membershipResult['membershipName'];
+        $memberships[] = array(
+            'membershipName' => $membershipResult['membershipName'],
+            'duration' => $membershipResult['termDuration'],
+            'startDate' => $membershipResult['termStartDate'],
+            'status' => $membershipResult['status']
+        );
       }
 
-      $result = implode(',', $memberships);
-//      $this->showDataAndDie($result, true);
-    }
+      $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_memberships'));
+      if( empty($fieldId) ){
+        $record = new stdClass();
+        $record->shortname = 'auth_neon_memberships';
+        $record->name = 'Neon Memberships';
+        $record->datatype = 'text';
 
-    return $result;
+        $fieldId = $DB->insert_record('user_info_field', $record);
+      }
+
+      $memberships = json_encode($memberships);
+
+      if( $record = $DB->get_record('user_info_data', array('userid' => $user->id, 'fieldid' => $fieldId)) ){
+        $record->data = $memberships;
+
+        $DB->update_record('user_info_data', $record);
+      }else{
+        $record = new stdClass();
+        $record->userid = $user->id;
+        $record->fieldid = $fieldId;
+        $record->data = $memberships;
+
+//        $this->showDataAndDie($record, true);
+
+        $DB->insert_record('user_info_data', $record);
+      }
+    }
   }
 
   protected function _get_query_data(array $array){
@@ -284,7 +312,7 @@ class auth_plugin_neon extends auth_plugin_base{
         }
 
         // Gather any additional data for later use
-        $this->_get_additional_data($neon, $access_token);
+        $this->_get_additional_data($neon, $access_token, $moodle_user);
 
         // complete Authenticate user
         authenticate_user_login($username, null);
