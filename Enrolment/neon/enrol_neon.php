@@ -16,6 +16,15 @@ require_once($CFG->libdir . '/enrollib.php');
  */
 class enrol_neon extends enrol_plugin{
   /**
+   * Add new instance of enrol plugin with default settings.
+   * @param object $course
+   * @return int id of new instance
+   */
+  public function add_default_instance($course) {
+    return $this->add_instance($course, $fields);
+  }
+
+  /**
    * Forces synchronisation of user enrolments.
    *
    * this function is called for all enabled enrol plugins
