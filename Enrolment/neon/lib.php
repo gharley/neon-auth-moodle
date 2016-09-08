@@ -14,13 +14,15 @@ require_once($CFG->libdir . '/enrollib.php');
  * This plugin uses information gathered by the auth_neon plugin to
  * enrol users in courses that require registration and or payment.
  */
-class enrol_neon extends enrol_plugin{
+class enrol_neon_plugin extends enrol_plugin{
   /**
    * Add new instance of enrol plugin with default settings.
    * @param object $course
    * @return int id of new instance
    */
   public function add_default_instance($course) {
+    $fields = array('status'=>$this->get_config('status'));
+
     return $this->add_instance($course, $fields);
   }
 
@@ -38,6 +40,8 @@ class enrol_neon extends enrol_plugin{
   public function sync_user_enrolments($user) {
     global $DB;
 
+    if( $user->auth != 'neon' ) return;
+
     $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_memberships'));
     if( empty($fieldId) ) return;
 
@@ -45,8 +49,26 @@ class enrol_neon extends enrol_plugin{
     if( empty($memberships) ) return;
 
     $memberships = json_decode($memberships);
-    $this->showDataAndDie($memberships, true);
 
+    foreach( $memberships as $membership ){
+      if( $membership->status != 'SUCCEED' ) continue;
+
+      $course = $DB->get_record('course', array('idnumber' => $membership->membershipName));
+      if( empty($course) ) continue;
+
+      $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
+      if( empty($enrolment) ){
+        $record = new stdClass();
+        $record->enrol = 'neon';
+        $record->courseid = $course->id;
+        $record->status = $course->startdate <= getdate()[0] ? 1 : 0;
+
+        $DB->insert_record('enrol', $record);
+        $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
+      }
+
+      $this->enrol_user($enrolment, $user->id);
+    }
   }
 
   private function showDataAndDie($data, $die = false){
