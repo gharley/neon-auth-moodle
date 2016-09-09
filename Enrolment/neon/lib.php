@@ -64,6 +64,9 @@ class enrol_neon_plugin extends enrol_plugin{
 
         $DB->insert_record('enrol', $record);
       }
+
+      $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
+      $this->enrol_user($enrolment, $user->id);
     }
   }
 
