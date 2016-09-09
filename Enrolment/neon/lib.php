@@ -56,19 +56,30 @@ class enrol_neon_plugin extends enrol_plugin{
       $course = $DB->get_record('course', array('idnumber' => $membership->membershipName));
       if( empty($course) ) continue;
 
-      $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
-      if( empty($enrolment) ){
+      if( !$DB->record_exists('enrol', array('enrol' => 'neon', 'courseid' => $course->id)) ){
         $record = new stdClass();
         $record->enrol = 'neon';
         $record->courseid = $course->id;
-        $record->status = $course->startdate <= getdate()[0] ? 1 : 0;
+        $record->status = $course->startdate <= getdate()[0] ? 0 : 1;
 
         $DB->insert_record('enrol', $record);
-        $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
       }
-
-      $this->enrol_user($enrolment, $user->id);
     }
+  }
+
+  /**
+   * Attempt to automatically enrol current user in course without any interaction,
+   * calling code has to make sure the plugin and instance are active.
+   *
+   * This should return either a timestamp in the future or false.
+   *
+   * @param stdClass $instance course enrol instance
+   * @return bool|int false means not enrolled, integer means timeend
+   */
+  public function try_autoenrol(stdClass $instance) {
+    global $USER;
+
+    return 0;
   }
 
   private function showDataAndDie($data, $die = false){
