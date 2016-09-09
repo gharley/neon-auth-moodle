@@ -21,9 +21,9 @@ if( empty($error) ){
 
   $loginurl = $CFG->wwwroot . '/login/index.php';
 
-  if( !empty($CFG->alternateloginurl) ){
-    $loginurl = $CFG->alternateloginurl;
-  }
+//  if( !empty($CFG->alternateloginurl) ){
+//    $loginurl = $CFG->alternateloginurl;
+//  }
 
   $url_params = array('oauthcode' => $code, 'authprovider' => 'neon');
 

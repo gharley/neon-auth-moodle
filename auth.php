@@ -7,7 +7,7 @@
 /**
  * Login with Neon CRM password.
  *
- * @package auth_none
+ * @package auth_neon
  * @author Greg Harley
  * @license   https://opensource.org/licenses/MIT MIT
  *
