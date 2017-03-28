@@ -8,7 +8,7 @@
  * http://github.com/colinpizarek
  */
 
-session_start();
+// session_start();
 $_SESSION['neonSession'] = null;
 
 class Neon

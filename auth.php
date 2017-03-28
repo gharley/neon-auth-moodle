@@ -46,6 +46,7 @@ class auth_plugin_neon extends auth_plugin_base{
     global $DB;
 
     $this->_settings['request_token_url'] = $this->usingSandbox ? 'https://trial.z2systems.com/np/oauth/token' : 'https://z2systems.com/np/oauth/token';
+    $this->_settings['logout_url'] = $this->usingSandbox ? 'https://trial.z2systems.com/np/constituent/link.do' : 'https://z2systems.com/np/constituent/link.do';
 
     $this->authtype = 'neon';
     $this->_config = get_config('auth/neon');
@@ -293,7 +294,7 @@ class auth_plugin_neon extends auth_plugin_base{
         }
 
         if( !empty($username) ){
-          $moodle_user = $DB->get_record('user', array('username' => $username, auth => $this->authtype, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
+          $moodle_user = $DB->get_record('user', array('username' => $username, 'auth' => $this->authtype, 'deleted' => 0, 'mnethostid' => $CFG->mnet_localhost_id));
         }else{
           @setcookie($this->authtype . '_access_token', null, time() - 3600);
           throw new moodle_exception('Login failed', 'auth_neon');
@@ -373,8 +374,20 @@ class auth_plugin_neon extends auth_plugin_base{
   }
 
   public function logoutpage_hook(){
+    global $CFG;
+
+    // first clear the saved access token
     @setcookie($this->authtype . '_access_token', null, -1, '/');
 
+    // require curl from Moodle core
+    require_once($CFG->libdir . '/filelib.php');
+
+    // Log out from Neon
+    $curl = new curl();
+    $curl->resetHeader();
+    $curl->setHeader('Host: ' . $CFG->wwwroot);
+    $result = $curl->get($this->_settings['logout_url'], array('choice' => 'logout'));
+// $this->showDataAndDie($result, true);
     return true;
   }
 
