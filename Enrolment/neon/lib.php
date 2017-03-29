@@ -42,18 +42,18 @@ class enrol_neon_plugin extends enrol_plugin{
 
     if( $user->auth != 'neon' ) return;
 
-    $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_memberships'));
+    $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_orders'));
     if( empty($fieldId) ) return;
 
-    $memberships = $DB->get_field('user_info_data', 'data', array('userid' => $user->id, 'fieldid' => $fieldId));
-    if( empty($memberships) ) return;
+    $orders = $DB->get_field('user_info_data', 'data', array('userid' => $user->id, 'fieldid' => $fieldId));
+    if( empty($orders) ) return;
 
-    $memberships = json_decode($memberships);
+    $orders = json_decode($orders);
 
-    foreach( $memberships as $membership ){
-      if( $membership->status != 'SUCCEED' ) continue;
+    foreach( $orders as $order ){
+      // if( $order->status != 'SUCCEED' ) continue;
 
-      $course = $DB->get_record('course', array('idnumber' => $membership->membershipName));
+      $course = $DB->get_record('course', array('idnumber' => $order->code));
       if( empty($course) ) continue;
 
       if( !$DB->record_exists('enrol', array('enrol' => 'neon', 'courseid' => $course->id)) ){

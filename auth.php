@@ -105,47 +105,51 @@ class auth_plugin_neon extends auth_plugin_base{
     $result = '';
 
     $queryparams = array(
-        'method' => 'membership/listMembershipHistory',
+        'method' => 'store/listOrders',
         'parameters' => array(
             'accountId' =>  $access_token,
         )
     );
 
     $queryResult = $neon->go($queryparams);
+      //  $this->showDataAndDie($queryResult, true);
 
     if( $queryResult['operationResult'] == 'SUCCESS' ){
-      $memberships = array();
+      $orders = array();
 
-      foreach( $queryResult['membershipResults']['membershipResult'] as $membershipResult ){
-        $memberships[] = array(
-            'membershipName' => $membershipResult['membershipName'],
-            'duration' => $membershipResult['termDuration'],
-            'startDate' => $membershipResult['termStartDate'],
-            'status' => $membershipResult['status']
-        );
+      foreach( $queryResult['orders']['order'] as $order ){
+        foreach( $order['shoppingCart']['shoppingCartItems']['shoppingCartItem'] as $item ){
+          if( !isset($item['product']) ) continue;
+          if( $item['product']['category']['name'] == 'Online Course' ){
+            $orders[] = array(
+                'code' => $item['product']['code'],
+            );
+          }
+        }
       }
 
-      $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_memberships'));
+// $this->showDataAndDie($orders, true);
+      $orders = json_encode($orders);
+
+      $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_orders'));
       if( empty($fieldId) ){
         $record = new stdClass();
-        $record->shortname = 'auth_neon_memberships';
-        $record->name = 'Neon Memberships';
+        $record->shortname = 'auth_neon_orders';
+        $record->name = 'Neon Orders';
         $record->datatype = 'text';
 
         $fieldId = $DB->insert_record('user_info_field', $record);
       }
 
-      $memberships = json_encode($memberships);
-
       if( $record = $DB->get_record('user_info_data', array('userid' => $user->id, 'fieldid' => $fieldId)) ){
-        $record->data = $memberships;
+        $record->data = $orders;
 
         $DB->update_record('user_info_data', $record);
       }else{
         $record = new stdClass();
         $record->userid = $user->id;
         $record->fieldid = $fieldId;
-        $record->data = $memberships;
+        $record->data = $orders;
 
 //        $this->showDataAndDie($record, true);
 
@@ -383,10 +387,14 @@ class auth_plugin_neon extends auth_plugin_base{
     require_once($CFG->libdir . '/filelib.php');
 
     // Log out from Neon
-    $curl = new curl();
-    $curl->resetHeader();
-    $curl->setHeader('Host: ' . $CFG->wwwroot);
-    $result = $curl->get($this->_settings['logout_url'], array('choice' => 'logout'));
+    $curl = new curl(array('debug' => true));
+
+    // $curl->resetHeader();
+    // $curl->setHeader('Host: trial.z2systems.com');
+    $curl->setHeader('Host: ' . preg_replace('/https?:\/\//', '', $CFG->wwwroot));
+
+    $result = $curl->get($this->_settings['logout_url']);
+    // $this->showDataAndDie($curl->rawresponse);
 // $this->showDataAndDie($result, true);
     return true;
   }
