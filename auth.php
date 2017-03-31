@@ -387,7 +387,7 @@ class auth_plugin_neon extends auth_plugin_base{
     require_once($CFG->libdir . '/filelib.php');
 
     // Log out from Neon
-    $curl = new curl(array('debug' => true));
+    $curl = new curl(array('debug' => false));
 
     // $curl->resetHeader();
     // $curl->setHeader('Host: trial.z2systems.com');
