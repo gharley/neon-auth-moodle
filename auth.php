@@ -23,8 +23,6 @@ require_once('neon.php');
  * Plugin for neon authentication.
  */
 class auth_plugin_neon extends auth_plugin_base{
-  private $usingSandbox = true;
-
   /**
    * Neon webservice settings
    *
@@ -45,13 +43,13 @@ class auth_plugin_neon extends auth_plugin_base{
   function auth_plugin_neon(){
     global $DB;
 
-    $this->_settings['request_token_url'] = $this->usingSandbox ? 'https://trial.z2systems.com/np/oauth/token' : 'https://z2systems.com/np/oauth/token';
-    $this->_settings['logout_url'] = $this->usingSandbox ? 'https://trial.z2systems.com/np/constituent/link.do' : 'https://z2systems.com/np/constituent/link.do';
-
     $this->authtype = 'neon';
     $this->_config = get_config('auth/neon');
     $this->roleauth = 'auth_neon';
     $this->errorlogtag = '[AUTH neon]';
+
+    $this->_settings['request_token_url'] = $this->_config->auth_neon_sandbox ? 'https://trial.z2systems.com/np/oauth/token' : 'https://z2systems.com/np/oauth/token';
+    $this->_settings['logout_url'] = $this->_config->auth_neon_sandbox ? 'https://trial.z2systems.com/np/constituent/link.do' : 'https://z2systems.com/np/constituent/link.do';
   }
 
   public static function getInstance(){
@@ -405,6 +403,10 @@ class auth_plugin_neon extends auth_plugin_base{
 
   protected function setDefaults($config){
     // set to defaults if undefined
+    if( empty($config->auth_neon_sandbox) || !isset($config->auth_neon_sandbox) ){
+      $config->auth_neon_sandbox = 0;
+    }else $config->auth_neon_sandbox = 1;
+
     if( !isset($config->auth_neon_user_prefix) ){
       $config->auth_neon_user_prefix = 'neon_user_';
     }
@@ -458,6 +460,7 @@ class auth_plugin_neon extends auth_plugin_base{
       $this->setDefaults($config); // Set defaults for uninitialized fields
 
       // save settings
+      set_config('auth_neon_sandbox', intval($config->auth_neon_sandbox), 'auth/neon');
       set_config('auth_neon_api_key', trim($config->auth_neon_api_key), 'auth/neon');
       set_config('auth_neon_org_id', trim($config->auth_neon_org_id), 'auth/neon');
       set_config('auth_neon_client_id', trim($config->auth_neon_client_id), 'auth/neon');

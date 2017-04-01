@@ -8,6 +8,19 @@ global $CFG;
     <td colspan="3"><h3><?php echo get_string('auth_neon_main_settings', 'auth_neon'); ?></h3></td>
   </tr>
   <tr>
+    <td width="50%" colspan="2"><?php
+        echo html_writer::checkbox(
+                'auth_neon_sandbox', 1,
+                $config->auth_neon_sandbox,
+                get_string( 'auth_neon_sandbox_key', 'auth_neon' ), array( 'id' => 'auth_neon_sandbox' )
+        );
+      if( isset($err['auth_neon_sandbox']) ){
+        echo $OUTPUT->error_text($err['auth_neon_sandbox']);
+      } ?>
+    </td>
+    <td width="50%"><?php echo get_string('auth_neon_sandbox_desc', 'auth_neon'); ?></td>
+  </tr>
+  <tr>
     <td align="right" width="15%"><label
           for="auth_neon_user_prefix"><?php echo get_string('auth_neon_user_prefix_key', 'auth_neon'); ?></label>
     </td>

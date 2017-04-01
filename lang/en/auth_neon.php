@@ -15,6 +15,8 @@
 $string['auth_neondescription'] = 'Users can sign in using their Neon CRM account.';
 $string['pluginname'] = 'Neon CRM';
 $string['auth_neon_main_settings'] = 'Main settings';
+$string['auth_neon_sandbox_key'] = 'Use Neon CRM Sandbox';
+$string['auth_neon_sandbox_desc'] = 'Should be checked if running in the Neon CRM sandbox during development';
 $string['auth_neon_user_prefix_key'] = 'User prefix';
 $string['auth_neon_user_prefix_desc'] = 'Moodle users nickname prefix, authorized via Neon';
 $string['auth_neon_default_country_key'] = 'Default country';
