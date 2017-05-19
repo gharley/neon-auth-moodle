@@ -49,7 +49,7 @@ class enrol_neon_plugin extends enrol_plugin{
     if( empty($orders) ) return;
 
     $orders = json_decode($orders);
-
+// $this->showDataAndDie($orders, true);
     foreach( $orders as $order ){
       // if( $order->status != 'SUCCEED' ) continue;
 
@@ -82,7 +82,7 @@ class enrol_neon_plugin extends enrol_plugin{
   public function try_autoenrol(stdClass $instance) {
     global $USER;
 
-    return 0;
+    return false;
   }
 
   private function showDataAndDie($data, $die = false){
