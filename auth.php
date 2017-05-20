@@ -382,19 +382,25 @@ class auth_plugin_neon extends auth_plugin_base{
     @setcookie($this->authtype . '_access_token', null, -1, '/');
 
     // require curl from Moodle core
-    require_once($CFG->libdir . '/filelib.php');
+    // require_once($CFG->libdir . '/filelib.php');
 
-    // Log out from Neon
-    $curl = new curl(array('debug' => false));
+    // // Log out from Neon
+    // $curl = new curl(array('debug' => false));
 
-    // $curl->resetHeader();
-    // $curl->setHeader('Host: trial.z2systems.com');
-    $curl->setHeader('Host: ' . preg_replace('/https?:\/\//', '', $CFG->wwwroot));
+    // // $curl->resetHeader();
+    // // $curl->setHeader('Host: trial.z2systems.com');
+    // $curl->setHeader('Host: ' . preg_replace('/https?:\/\//', '', $CFG->wwwroot));
 
-    $result = $curl->get($this->_settings['logout_url']);
+    // $result = $curl->get($this->_settings['logout_url']);
     // $this->showDataAndDie($curl->rawresponse);
 // $this->showDataAndDie($result, true);
     return true;
+  }
+
+  public function postlogout_hook($user){
+    global $CFG;
+
+    redirect($CFG->wwwroot . '/auth/neon/logout.php');
   }
 
   function is_internal(){
