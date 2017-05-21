@@ -51,19 +51,10 @@ class enrol_neon_plugin extends enrol_plugin{
     $orders = json_decode($orders);
 // $this->showDataAndDie($orders, true);
     foreach( $orders as $order ){
-      // if( $order->status != 'SUCCEED' ) continue;
-
       $course = $DB->get_record('course', array('idnumber' => $order->code));
       if( empty($course) ) continue;
 
-      if( !$DB->record_exists('enrol', array('enrol' => 'neon', 'courseid' => $course->id)) ){
-        $record = new stdClass();
-        $record->enrol = 'neon';
-        $record->courseid = $course->id;
-        $record->status = $course->startdate <= getdate()[0] ? 0 : 1;
-
-        $DB->insert_record('enrol', $record);
-      }
+      $this->checkCourseEnrolled($course);
 
       $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
       $this->enrol_user($enrolment, $user->id);
@@ -83,6 +74,19 @@ class enrol_neon_plugin extends enrol_plugin{
     global $USER;
 
     return false;
+  }
+
+  private function checkCourseEnrolled($course){
+    global $DB;
+
+    if( !$DB->record_exists('enrol', array('enrol' => 'neon', 'courseid' => $course->id)) ){
+      $record = new stdClass();
+      $record->enrol = 'neon';
+      $record->courseid = $course->id;
+      $record->status = $course->startdate <= getdate()[0] ? 0 : 1;
+
+      $DB->insert_record('enrol', $record);
+    }
   }
 
   private function showDataAndDie($data, $die = false){
