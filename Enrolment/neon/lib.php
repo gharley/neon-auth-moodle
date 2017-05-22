@@ -42,6 +42,8 @@ class enrol_neon_plugin extends enrol_plugin{
 
     if( $user->auth != 'neon' ) return;
 
+    $this->checkCoursesEnrolled();
+
     $fieldId = $DB->get_field('user_info_field', 'id', array('shortname' => 'auth_neon_orders'));
     if( empty($fieldId) ) return;
 
@@ -53,8 +55,6 @@ class enrol_neon_plugin extends enrol_plugin{
     foreach( $orders as $order ){
       $course = $DB->get_record('course', array('idnumber' => $order->code));
       if( empty($course) ) continue;
-
-      $this->checkCourseEnrolled($course);
 
       $enrolment = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
       $this->enrol_user($enrolment, $user->id);
@@ -71,21 +71,35 @@ class enrol_neon_plugin extends enrol_plugin{
    * @return bool|int false means not enrolled, integer means timeend
    */
   public function try_autoenrol(stdClass $instance) {
-    global $USER;
+    global $DB;
 
+    $course = $DB->get_record('course', array('id' => $instance->courseid), 'category');
+// $this->showDataAndDie($course);
+// $this->showDataAndDie($instance, true);
     return false;
   }
 
-  private function checkCourseEnrolled($course){
+  private function checkCoursesEnrolled(){
     global $DB;
 
-    if( !$DB->record_exists('enrol', array('enrol' => 'neon', 'courseid' => $course->id)) ){
-      $record = new stdClass();
-      $record->enrol = 'neon';
-      $record->courseid = $course->id;
-      $record->status = $course->startdate <= getdate()[0] ? 0 : 1;
+    $courses = $DB->get_records('course', null, null, 'id, startdate');
+// $this->showDataAndDie($courses, true);
 
-      $DB->insert_record('enrol', $record);
+    foreach( $courses as $course ){
+      if( !$DB->record_exists('enrol', array('enrol' => 'neon', 'courseid' => $course->id)) ){
+        $record = new stdClass();
+        $record->enrol = 'neon';
+        $record->courseid = $course->id;
+        $record->status = $course->startdate <= time() ? 0 : 1;
+
+        $DB->insert_record('enrol', $record);
+      }else{
+        $record = $DB->get_record('enrol', array('enrol' => 'neon', 'courseid' => $course->id));
+        if( $record->status == 1 && $course->startdate <= time() ){
+          $record->status = 0;
+          $DB->update_record('enrol', $record);
+        }
+      }
     }
   }
 
